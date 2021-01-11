@@ -1,0 +1,31 @@
+#ifndef OBJECT_DETECTION_YOLOV5_DETECTOR_YOLOV5_H_
+#define OBJECT_DETECTION_YOLOV5_DETECTOR_YOLOV5_H_
+
+#include <string>
+
+#include <boost/python.hpp>
+#include <image_transport/image_transport.h>
+#include <image_transport/subscriber_filter.h>
+#include <ros/ros.h>
+
+namespace object_detection_yolov5 {
+
+class ObjectDetectorYolov5 {
+ public:
+  explicit ObjectDetectorYolov5(const std::string& topic);
+
+ private:
+  void imageCallback(const sensor_msgs::ImageConstPtr& img_msg);
+  static constexpr size_t kQueueSize = 10u;
+
+  ros::NodeHandle private_node_handle_;
+  image_transport::ImageTransport it_{private_node_handle_};
+  image_transport::Subscriber sub_image_;
+  ros::Publisher detection_pub_, overlay_pub_;
+
+  // Own a python object here to read the yolov5 model.
+};
+
+}  // namespace object_detection_yolov5
+
+#endif  // OBJECT_DETECTION_YOLOV5_DETECTOR_YOLOV5_H_

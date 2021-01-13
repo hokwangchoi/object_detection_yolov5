@@ -6,9 +6,12 @@
 #include <boost/python.hpp>
 #include <image_transport/image_transport.h>
 #include <image_transport/subscriber_filter.h>
+#include <python3.8/Python.h>
 #include <ros/ros.h>
 
 namespace object_detection_yolov5 {
+
+namespace bp = boost::python;
 
 class ObjectDetectorYolov5 {
  public:
@@ -23,7 +26,8 @@ class ObjectDetectorYolov5 {
   image_transport::Subscriber sub_image_;
   ros::Publisher detection_pub_, overlay_pub_;
 
-  // Own a python object here to read the yolov5 model.
+  // Yolov5 model.
+  bp::object yolov5_net;
 };
 
 }  // namespace object_detection_yolov5

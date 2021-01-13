@@ -1,5 +1,7 @@
 #include <exception>
 
+#include <boost/python.hpp>
+#include <python3.8/Python.h>
 #include <ros/ros.h>
 
 #include "object_detection_yolov5/detector_yolov5.h"

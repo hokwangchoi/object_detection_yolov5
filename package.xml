@@ -14,7 +14,6 @@
   <depend>cv_bridge</depend>
   <depend>gflags_catkin</depend>
   <depend>image_transport</depend>
-  <depend>nodelet</depend>
   <depend>opencv3_catkin</depend>
   <depend>roscpp</depend>
   <depend>sensor_msgs</depend>

@@ -1,7 +1,12 @@
 #include "object_detection_yolov5/detector_yolov5.h"
 
-#include <boost/python.hpp>
+#include <boost/python/numpy.hpp>
 #include <cv_bridge/cv_bridge.h>
+#include <gflags/gflags.h>
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui.hpp>
+#include <opencv2/imgcodecs.hpp>
+#include <opencv2/opencv.hpp>
 #include <python3.8/Python.h>
 #include <sensor_msgs/CameraInfo.h>
 #include <sensor_msgs/Image.h>
@@ -9,8 +14,11 @@
 #include <vision_msgs/Classification2D.h>
 #include <vision_msgs/Detection2DArray.h>
 #include <vision_msgs/VisionInfo.h>
+#include "object_detection_yolov5/implementation/detector_helper_inl.h"
 
 namespace object_detection_yolov5 {
+
+namespace np = boost::python::numpy;
 
 std::string parse_python_exception() {
   PyObject *type_ptr = NULL, *value_ptr = NULL, *traceback_ptr = NULL;
@@ -49,9 +57,21 @@ std::string parse_python_exception() {
   return ret;
 }
 
+np::ndarray ConvertMatToNDArray(const cv::Mat& mat) {
+  bp::tuple shape = bp::make_tuple(mat.rows, mat.cols, mat.channels());
+  bp::tuple stride = bp::make_tuple(
+      mat.channels() * mat.cols * sizeof(uchar), mat.channels() * sizeof(uchar),
+      sizeof(uchar));
+  np::dtype dt = np::dtype::get_builtin<uchar>();
+  np::ndarray ndImg = np::from_data(mat.data, dt, shape, stride, bp::object());
+
+  return ndImg;
+}
+
 ObjectDetectorYolov5::ObjectDetectorYolov5(const std::string& topic) {
   // Initialize the python instance.
   Py_Initialize();
+  np::initialize();
 
   // Define a python program.
   wchar_t programname[] = L"object_detector_yolov5.py";
@@ -85,7 +105,9 @@ ObjectDetectorYolov5::ObjectDetectorYolov5(const std::string& topic) {
 
 void ObjectDetectorYolov5::imageCallback(
     const sensor_msgs::ImageConstPtr& img_msg) {
-  // Convert the image
+  // Convert the image.
+  // cv::Mat cv_image = ConvertRosImageMsgToCV(img_msg);
+
   // Run inference and get the detection output.
   try {
     yolov5_net.attr("detect")();

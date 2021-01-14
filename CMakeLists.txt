@@ -20,11 +20,13 @@ add_python_export_library(${PROJECT_NAME}_py_lib python/object_detection_yolov5
   src/detector_yolov5.cc
 )
 
+find_package(Boost REQUIRED COMPONENTS numpy)
+
 cs_add_executable(detector_node_yolov5 src/nodes/detector_node_yolov5.cc)
-target_link_libraries(detector_node_yolov5 ${PROJECT_NAME}_py_lib)
+target_link_libraries(detector_node_yolov5 ${PROJECT_NAME}_py_lib ${Boost_LIBRARIES})
 
 cs_add_executable(test_python src/test_python.cc)
-target_link_libraries(test_python ${PROJECT_NAME})
+target_link_libraries(test_python ${PROJECT_NAME} ${Boost_LIBRARIES})
 
 cs_install()
 cs_export()

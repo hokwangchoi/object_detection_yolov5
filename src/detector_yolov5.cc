@@ -60,8 +60,12 @@ ObjectDetectorYolov5::ObjectDetectorYolov5(const std::string& topic) {
 
   // Load the yolov5 model.
   try {
+    // TODO(choi0330): get a correct path to not depend on the terminal pwd.
+    // TODO(choi0330): remove all possible dependencies and make a small
+    // directory for yolov5.
     const bp::object module(bp::import("detect"));
-    yolov5_net = module.attr("detect");
+    bp::object detector_class = module.attr("DetectorYoloV5");
+    yolov5_net = detector_class(0.25, 0.45);
   } catch (boost::python::error_already_set const&) {
     std::cout << "Exception in Python:" << parse_python_exception()
               << std::endl;
@@ -82,8 +86,14 @@ ObjectDetectorYolov5::ObjectDetectorYolov5(const std::string& topic) {
 void ObjectDetectorYolov5::imageCallback(
     const sensor_msgs::ImageConstPtr& img_msg) {
   // Convert the image
-  // Run inference (python code) and get the correct output.
-  yolov5_net();
+  // Run inference and get the detection output.
+  try {
+    yolov5_net.attr("detect")();
+  } catch (boost::python::error_already_set const&) {
+    std::cout << "Exception in Python:" << parse_python_exception()
+              << std::endl;
+    std::terminate();
+  }
 
   // Create a detection for each bounding box
   vision_msgs::Detection2DArray array_msg;

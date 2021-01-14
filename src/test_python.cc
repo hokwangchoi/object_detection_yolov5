@@ -64,7 +64,6 @@ void pythonFriendlyTerminate() {
 int main() {
   if (!termineAlreadyInfiltrated) {
     std::set_terminate(pythonFriendlyTerminate);
-    // TODO make thread safe using singleton.
     termineAlreadyInfiltrated = true;
   }
 

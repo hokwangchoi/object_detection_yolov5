@@ -27,6 +27,8 @@ class ObjectDetectorYolov5 {
   ros::Publisher detection_pub_, overlay_pub_;
 
   // Yolov5 model.
+  bp::object python_module;
+  bp::object python_class;
   bp::object yolov5_net;
 };
 

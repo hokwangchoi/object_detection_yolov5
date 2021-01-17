@@ -17,6 +17,7 @@
   <depend>opencv3_catkin</depend>
   <depend>roscpp</depend>
   <depend>sensor_msgs</depend>
+  <depend>std_msgs</depend>
   <depend>vision_msgs</depend>
 
 </package>

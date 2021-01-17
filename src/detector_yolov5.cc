@@ -3,6 +3,7 @@
 #include <boost/python/numpy.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <gflags/gflags.h>
+#include <image_transport/image_transport.h>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgcodecs.hpp>
@@ -17,56 +18,6 @@
 #include "object_detection_yolov5/implementation/detector_helper_inl.h"
 
 namespace object_detection_yolov5 {
-
-namespace np = boost::python::numpy;
-
-std::string parse_python_exception() {
-  PyObject *type_ptr = NULL, *value_ptr = NULL, *traceback_ptr = NULL;
-  PyErr_Fetch(&type_ptr, &value_ptr, &traceback_ptr);
-  std::string ret("Unfetchable Python error");
-  if (type_ptr != NULL) {
-    bp::handle<> h_type(type_ptr);
-    bp::str type_pstr(h_type);
-    bp::extract<std::string> e_type_pstr(type_pstr);
-    if (e_type_pstr.check())
-      ret = e_type_pstr();
-    else
-      ret = "Unknown exception type";
-  }
-  if (value_ptr != NULL) {
-    bp::handle<> h_val(value_ptr);
-    bp::str a(h_val);
-    bp::extract<std::string> returned(a);
-    if (returned.check())
-      ret += ": " + returned();
-    else
-      ret += std::string(": Unparseable Python error: ");
-  }
-  if (traceback_ptr != NULL) {
-    bp::handle<> h_tb(traceback_ptr);
-    bp::object tb(bp::import("traceback"));
-    bp::object fmt_tb(tb.attr("format_tb"));
-    bp::object tb_list(fmt_tb(h_tb));
-    bp::object tb_str(bp::str("\n").join(tb_list));
-    bp::extract<std::string> returned(tb_str);
-    if (returned.check())
-      ret += ": " + returned();
-    else
-      ret += std::string(": Unparseable Python traceback");
-  }
-  return ret;
-}
-
-np::ndarray ConvertMatToNDArray(const cv::Mat& mat) {
-  bp::tuple shape = bp::make_tuple(mat.rows, mat.cols, mat.channels());
-  bp::tuple stride = bp::make_tuple(
-      mat.channels() * mat.cols * sizeof(uchar), mat.channels() * sizeof(uchar),
-      sizeof(uchar));
-  np::dtype dt = np::dtype::get_builtin<uchar>();
-  np::ndarray ndImg = np::from_data(mat.data, dt, shape, stride, bp::object());
-
-  return ndImg;
-}
 
 ObjectDetectorYolov5::ObjectDetectorYolov5(const std::string& topic) {
   // Initialize the python instance.
@@ -83,9 +34,9 @@ ObjectDetectorYolov5::ObjectDetectorYolov5(const std::string& topic) {
     // TODO(choi0330): get a correct path to not depend on the terminal pwd.
     // TODO(choi0330): remove all possible dependencies and make a small
     // directory for yolov5.
-    const bp::object module(bp::import("detect"));
-    bp::object detector_class = module.attr("DetectorYoloV5");
-    yolov5_net = detector_class(0.25, 0.45);
+    python_module = bp::import("detect");
+    python_class = python_module.attr("DetectorYoloV5");
+    yolov5_net = python_class(0.25, 0.45);
   } catch (boost::python::error_already_set const&) {
     std::cout << "Exception in Python:" << parse_python_exception()
               << std::endl;
@@ -105,12 +56,29 @@ ObjectDetectorYolov5::ObjectDetectorYolov5(const std::string& topic) {
 
 void ObjectDetectorYolov5::imageCallback(
     const sensor_msgs::ImageConstPtr& img_msg) {
-  // Convert the image.
-  // cv::Mat cv_image = ConvertRosImageMsgToCV(img_msg);
+  // Convert the image to BGR8 which is needed for the yolov5 network.
+  cv::Mat cv_image = cv::Mat(
+      (*img_msg).height, (*img_msg).width, CV_8UC3,
+      const_cast<uchar*>(&(*img_msg).data[0]), (*img_msg).step);
 
   // Run inference and get the detection output.
+  std::vector<double> result_vector;
+  int num_detections = 0;
   try {
-    yolov5_net.attr("detect")();
+    bp::object result =
+        yolov5_net.attr("detect")((ConvertMatToNDArray(cv_image)));
+    if (result) {
+      np::ndarray nd_array = bp::extract<bp::numpy::ndarray>(result);
+      num_detections = nd_array.shape(0);
+      const int input_size = nd_array.shape(0) * nd_array.shape(1);
+      double* input_ptr = reinterpret_cast<double*>(nd_array.get_data());
+      for (int i = 0; i < input_size; ++i) {
+        result_vector.push_back(*(input_ptr + i));
+        std::cout << result_vector[i] << " ";
+      }
+    } else {
+      num_detections = 0;
+    }
   } catch (boost::python::error_already_set const&) {
     std::cout << "Exception in Python:" << parse_python_exception()
               << std::endl;
@@ -121,91 +89,37 @@ void ObjectDetectorYolov5::imageCallback(
   vision_msgs::Detection2DArray array_msg;
 
   // Publish the output
-  // // if objects were detected, send out message
-  // if (numDetections > 0) {
-  //   ROS_INFO(
-  //       "detected %i objects in %ux%u image", numDetections,
-  //       input_msg->width, input_msg->height);
+  // if objects were detected, send out message
+  if (num_detections > 0) {
+    ROS_INFO(
+        "detected %i objects in %ux%u image", num_detections, img_msg->width,
+        img_msg->height);
 
-  //   for (int n = 0; n < numDetections; n++) {
-  //     detectNet::Detection* det = *detections_dptr.get() + n;
+    for (int n = 0; n < num_detections; n++) {
+      vision_msgs::ObjectHypothesisWithPose hyp;
+      hyp.id = result_vector[n * 6];
+      hyp.score = result_vector[n * 6 + 1];
 
-  //     ROS_INFO(
-  //         "object %i class #%u (%s)  confidence=%f", n, det->ClassID,
-  //         net_->GetClassDesc(det->ClassID), det->Confidence);
-  //     ROS_INFO(
-  //         "object %i bounding box (%f, %f)  (%f, %f)  w=%f  h=%f", n,
-  //         det->Left, det->Top, det->Right, det->Bottom, det->Width(),
-  //         det->Height());
+      vision_msgs::Detection2D detMsg;
+      detMsg.bbox.center.x = result_vector[n * 6 + 2];
+      detMsg.bbox.center.y = result_vector[n * 6 + 3];
+      detMsg.bbox.center.theta = 0.0f;
+      detMsg.bbox.size_x = result_vector[n * 6 + 4];
+      detMsg.bbox.size_y = result_vector[n * 6 + 5];
 
-  //     // create a detection sub-message
-  //     vision_msgs::Detection2D detMsg;
+      detMsg.results.push_back(hyp);
+      array_msg.detections.push_back(detMsg);
+    }
+  }
 
-  //     detMsg.bbox.size_x = det->Width();
-  //     detMsg.bbox.size_y = det->Height();
+  // populate timestamp in header field
+  array_msg.header.stamp = img_msg->header.stamp;
 
-  //     float cx, cy;
-  //     det->Center(&cx, &cy);
+  // publish the detection message
+  detection_pub_.publish(array_msg);
 
-  //     detMsg.bbox.center.x = cx;
-  //     detMsg.bbox.center.y = cy;
-
-  //     detMsg.bbox.center.theta = 0.0f;
-
-  //     // create classification hypothesis
-  //     vision_msgs::ObjectHypothesisWithPose hyp;
-
-  //     hyp.id = det->ClassID;
-  //     hyp.score = det->Confidence;
-
-  //     detMsg.results.push_back(hyp);
-  //     array_msg.detections.push_back(detMsg);
-  //   }
-  // }
-
-  // // populate timestamp in header field
-  // array_msg.header.stamp = input_msg->header.stamp;
-
-  // // publish the detection message
-  // detection_pub_.publish(array_msg);
-
-  // // generate the overlay (if there are subscribers)
+  // Generate the overlay image(if there are subscribers).
   // if (overlay_pub_.getNumSubscribers() > 0) {
-  //   ROS_DEBUG("overlay image being processed.");
-  //   // get the image dimensions
-  //   const uint32_t width = input_cvt_->getWidth();
-  //   const uint32_t height = input_cvt_->getHeight();
-
-  //   // assure correct image size
-  //   if (!overlay_cvt_->resize(width, height,
-  //   ImageConverter::rosOutputFormat)) {
-  //     ROS_ERROR(
-  //         "failed to resize overlay image converter on %ux%u image", width,
-  //         height);
-  //   }
-
-  //   // generate the overlay with bounding box, label and confidence
-  //   if (!net_->Overlay(
-  //           input_cvt_->imageGPU().get(), overlay_cvt_->imageGPU().get(),
-  //           width, height, ImageConverter::internalFormat,
-  //           *detections_dptr.get(), numDetections, overlay_flags)) {
-  //     ROS_ERROR("failed to overlay the image on %ux%u image", width, height);
-  //   }
-
-  //   // populate the message
-  //   sensor_msgs::Image image_msg;
-  //   if (!overlay_cvt_->convert(image_msg, ImageConverter::rosOutputFormat)) {
-  //     ROS_ERROR(
-  //         "failed to convert the image for ros output %ux%u image", width,
-  //         height);
-  //   }
-
-  //   // populate timestamp in header field
-  //   image_msg.header.stamp = input_msg->header.stamp;
-
-  //   // publish the message
-  //   overlay_pub_.publish(image_msg);
-  //   ROS_DEBUG("publishing %ux%u overlay image", width, height);
   // }
 }
 

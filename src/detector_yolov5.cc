@@ -1,5 +1,8 @@
 #include "object_detection_yolov5/detector_yolov5.h"
 
+#include <cmath>
+#include <cstdlib>
+
 #include <boost/python/numpy.hpp>
 #include <gflags/gflags.h>
 #include <image_transport/image_transport.h>
@@ -54,11 +57,15 @@ ObjectDetectorYolov5::ObjectDetectorYolov5(const std::string& topic) {
 }
 
 void ObjectDetectorYolov5::imageCallback(
-    const sensor_msgs::ImageConstPtr& img_msg) {
-  // Convert the image to BGR8 which is needed for the yolov5 network.
-  cv::Mat cv_image = cv::Mat(
-      (*img_msg).height, (*img_msg).width, CV_8UC3,
-      const_cast<uchar*>(&(*img_msg).data[0]), (*img_msg).step);
+    const sensor_msgs::ImageConstPtr& input_msg) {
+  // TODO(choi0330): Boost python fails with cv_brdige, try to fix it.
+  // Assume the input image as MONO8 and convert it to BGR8 which is needed for
+  // the yolov5 network.
+  cv::Mat cv_image_raw = cv::Mat(
+      (*input_msg).height, (*input_msg).width, CV_8UC1,
+      const_cast<uchar*>(&(*input_msg).data[0]), (*input_msg).step);
+  cv::Mat cv_image;
+  cv::cvtColor(cv_image_raw, cv_image, cv::COLOR_GRAY2BGR);
 
   // Run inference and get the detection output.
   std::vector<double> result_vector;
@@ -68,14 +75,11 @@ void ObjectDetectorYolov5::imageCallback(
         yolov5_net.attr("detect")((ConvertMatToNDArray(cv_image)));
     np::ndarray nd_array = bp::extract<bp::numpy::ndarray>(result);
     num_detections = nd_array.shape(0);
-    std::cout << "py_array: " << bp::extract<char const*>(bp::str(nd_array))
-              << std::endl;
     if (num_detections > 0) {
       const int input_size = nd_array.shape(0) * nd_array.shape(1);
       double* input_ptr = reinterpret_cast<double*>(nd_array.get_data());
       for (int i = 0; i < input_size; ++i) {
         result_vector.push_back(*(input_ptr + i));
-        std::cout << result_vector[i] << " ";
       }
     }
   } catch (boost::python::error_already_set const&) {
@@ -90,10 +94,6 @@ void ObjectDetectorYolov5::imageCallback(
   // Publish the output
   // if objects were detected, send out message
   if (num_detections > 0) {
-    ROS_INFO(
-        "detected %i objects in %ux%u image", num_detections, img_msg->width,
-        img_msg->height);
-
     for (int n = 0; n < num_detections; n++) {
       vision_msgs::ObjectHypothesisWithPose hyp;
       static constexpr int kIdIndex = 0;
@@ -102,7 +102,8 @@ void ObjectDetectorYolov5::imageCallback(
       static constexpr int kYIndex = 3;
       static constexpr int kWIndex = 4;
       static constexpr int kHIndex = 5;
-      hyp.id = result_vector[n * 6 + kIdIndex];
+      hyp.id =
+          std::to_string(static_cast<int>(result_vector[n * 6 + kIdIndex]));
       hyp.score = result_vector[n * 6 + kConfidenceIndex];
 
       vision_msgs::Detection2D detMsg;
@@ -112,20 +113,53 @@ void ObjectDetectorYolov5::imageCallback(
       detMsg.bbox.size_x = result_vector[n * 6 + kWIndex];
       detMsg.bbox.size_y = result_vector[n * 6 + kHIndex];
 
+      // Generate the overlay image(if there are subscribers).
+      if (overlay_pub_.getNumSubscribers() > 0) {
+        cv::Point min_point(
+            detMsg.bbox.center.x - 0.5 * detMsg.bbox.size_x,
+            detMsg.bbox.center.y - 0.5 * detMsg.bbox.size_y);
+        cv::Point max_point(
+            detMsg.bbox.center.x + 0.5 * detMsg.bbox.size_x,
+            detMsg.bbox.center.y + 0.5 * detMsg.bbox.size_y);
+        // Dark blue color.
+        cv::Scalar color = cv::Scalar(135, 74, 32);
+        cv::rectangle(
+            cv_image, min_point, max_point, color, 2, cv::LineTypes::LINE_AA);
+        const std::string confidence = std::to_string(hyp.score);
+        const std::string rounded =
+            confidence.substr(0, confidence.find(".") + 3);
+        cv::String label =
+            std::string("Id: ") + hyp.id + std::string(" Conf: " + rounded);
+        cv::putText(
+            cv_image, label, cv::Point(min_point.x, max_point.y - 2), 0, 0.3,
+            cv::Scalar(225, 255, 255), 1, cv::LineTypes::LINE_AA);
+      }
+
       detMsg.results.push_back(hyp);
       array_msg.detections.push_back(detMsg);
     }
   }
 
-  // populate timestamp in header field
-  array_msg.header.stamp = img_msg->header.stamp;
+  // Populate the header.
+  array_msg.header = input_msg->header;
 
-  // publish the detection message
+  // Publish the detection message.
   detection_pub_.publish(array_msg);
 
-  // Generate the overlay image(if there are subscribers).
-  // if (overlay_pub_.getNumSubscribers() > 0) {
-  // }
+  if (overlay_pub_.getNumSubscribers() > 0) {
+    sensor_msgs::Image image_msg;
+    image_msg.header = input_msg->header;
+    image_msg.height = cv_image.rows;
+    image_msg.width = cv_image.cols;
+    image_msg.encoding = sensor_msgs::image_encodings::BGR8;
+    image_msg.step = cv_image.cols * cv_image.elemSize();
+    const size_t size = image_msg.step * cv_image.rows;
+    image_msg.data.resize(size);
+    memcpy(reinterpret_cast<char*>(&image_msg.data[0]), cv_image.data, size);
+
+    ROS_DEBUG("publishing %ux%u overlay image", cv_image.rows, cv_image.cols);
+    overlay_pub_.publish(image_msg);
+  }
 }
 
 }  // namespace object_detection_yolov5

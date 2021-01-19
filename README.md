@@ -1,6 +1,6 @@
 **Environment**
-* (recommended) Ubuntu 20 or (not tested) Boost python with python3.
-* Ros noetic.
+* (recommended) Ubuntu 20 or (not tested) Boost python with python3
+* [Ros noetic](http://wiki.ros.org/noetic)
 
 **Dependencies**
 * [catkin_simple](https://github.com/catkin/catkin_simple)

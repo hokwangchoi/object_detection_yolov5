@@ -4,7 +4,6 @@
 #include <cstdlib>
 
 #include <boost/python/numpy.hpp>
-#include <gflags/gflags.h>
 #include <image_transport/image_transport.h>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui.hpp>

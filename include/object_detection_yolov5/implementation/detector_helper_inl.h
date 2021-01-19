@@ -4,7 +4,6 @@
 #include <string>
 
 #include <boost/python/numpy.hpp>
-#include <gflags/gflags.h>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <python3.8/Python.h>

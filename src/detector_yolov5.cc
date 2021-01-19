@@ -34,8 +34,6 @@ ObjectDetectorYolov5::ObjectDetectorYolov5(const std::string& topic) {
   // Load the yolov5 model.
   try {
     // TODO(choi0330): get a correct path to not depend on the terminal pwd.
-    // TODO(choi0330): remove all possible dependencies and make a small
-    // directory for yolov5.
     python_module = bp::import("detect");
     python_class = python_module.attr("DetectorYoloV5");
     yolov5_net = python_class(0.25, 0.45);

@@ -6,6 +6,7 @@
 * [catkin_simple](https://github.com/catkin/catkin_simple)
 * [python_module](git@github.com:ethz-asl/schweizer_messer.git): branch: feature/python_version_arg
 * [opencv3_catkin](https://github.com/ethz-asl/opencv3_catkin)
+* [vision_msgs](https://github.com/ros-perception/vision_msgs): branch: noetic-devel
 
 **How to run**
 ```

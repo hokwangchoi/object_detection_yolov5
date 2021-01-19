@@ -1,7 +1,6 @@
 #include "object_detection_yolov5/detector_yolov5.h"
 
 #include <boost/python/numpy.hpp>
-#include <cv_bridge/cv_bridge.h>
 #include <gflags/gflags.h>
 #include <image_transport/image_transport.h>
 #include <opencv2/core/core.hpp>
@@ -67,17 +66,17 @@ void ObjectDetectorYolov5::imageCallback(
   try {
     bp::object result =
         yolov5_net.attr("detect")((ConvertMatToNDArray(cv_image)));
-    if (result) {
-      np::ndarray nd_array = bp::extract<bp::numpy::ndarray>(result);
-      num_detections = nd_array.shape(0);
+    np::ndarray nd_array = bp::extract<bp::numpy::ndarray>(result);
+    num_detections = nd_array.shape(0);
+    std::cout << "py_array: " << bp::extract<char const*>(bp::str(nd_array))
+              << std::endl;
+    if (num_detections > 0) {
       const int input_size = nd_array.shape(0) * nd_array.shape(1);
       double* input_ptr = reinterpret_cast<double*>(nd_array.get_data());
       for (int i = 0; i < input_size; ++i) {
         result_vector.push_back(*(input_ptr + i));
         std::cout << result_vector[i] << " ";
       }
-    } else {
-      num_detections = 0;
     }
   } catch (boost::python::error_already_set const&) {
     std::cout << "Exception in Python:" << parse_python_exception()
@@ -97,15 +96,21 @@ void ObjectDetectorYolov5::imageCallback(
 
     for (int n = 0; n < num_detections; n++) {
       vision_msgs::ObjectHypothesisWithPose hyp;
-      hyp.id = result_vector[n * 6];
-      hyp.score = result_vector[n * 6 + 1];
+      static constexpr int kIdIndex = 0;
+      static constexpr int kConfidenceIndex = 1;
+      static constexpr int kXIndex = 2;
+      static constexpr int kYIndex = 3;
+      static constexpr int kWIndex = 4;
+      static constexpr int kHIndex = 5;
+      hyp.id = result_vector[n * 6 + kIdIndex];
+      hyp.score = result_vector[n * 6 + kConfidenceIndex];
 
       vision_msgs::Detection2D detMsg;
-      detMsg.bbox.center.x = result_vector[n * 6 + 2];
-      detMsg.bbox.center.y = result_vector[n * 6 + 3];
+      detMsg.bbox.center.x = result_vector[n * 6 + kXIndex];
+      detMsg.bbox.center.y = result_vector[n * 6 + kYIndex];
       detMsg.bbox.center.theta = 0.0f;
-      detMsg.bbox.size_x = result_vector[n * 6 + 4];
-      detMsg.bbox.size_y = result_vector[n * 6 + 5];
+      detMsg.bbox.size_x = result_vector[n * 6 + kWIndex];
+      detMsg.bbox.size_y = result_vector[n * 6 + kHIndex];
 
       detMsg.results.push_back(hyp);
       array_msg.detections.push_back(detMsg);

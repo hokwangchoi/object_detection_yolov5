@@ -4,7 +4,6 @@
 #include <string>
 
 #include <boost/python/numpy.hpp>
-#include <cv_bridge/cv_bridge.h>
 #include <gflags/gflags.h>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -17,19 +16,6 @@ namespace object_detection_yolov5 {
 
 namespace bp = boost::python;
 namespace np = boost::python::numpy;
-
-inline cv::Mat ConvertRosImageMsgToCV(
-    const sensor_msgs::ImageConstPtr& img_msg) {
-  cv_bridge::CvImagePtr cv_ptr_rgb;
-  try {
-    cv_ptr_rgb =
-        cv_bridge::toCvCopy(img_msg, sensor_msgs::image_encodings::BGR8);
-  } catch (cv_bridge::Exception& e) {
-    ROS_ERROR("cv_bridge exception: %s", e.what());
-    std::terminate();
-  }
-  return cv_ptr_rgb->image;
-}
 
 inline np::ndarray ConvertMatToNDArray(const cv::Mat& mat) {
   bp::tuple shape = bp::make_tuple(mat.rows, mat.cols, mat.channels());

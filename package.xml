@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>object_detection_yolov5</name>
+  <version>0.1.0</version>
+  <description>2d object detection with yolov5.</description>
+
+  <maintainer email="hochoi@ethz.ch">Sevensense developers</maintainer>
+  <license>closed</license>
+
+  <build_depend>catkin</build_depend>
+  <build_depend>catkin_simple</build_depend>
+
+  <depend>python_module</depend>
+  <depend>gflags_catkin</depend>
+  <depend>image_transport</depend>
+  <depend>opencv3_catkin</depend>
+  <depend>roscpp</depend>
+  <depend>sensor_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>vision_msgs</depend>
+
+</package>

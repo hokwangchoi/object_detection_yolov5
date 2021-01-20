@@ -4,7 +4,7 @@
   <version>0.1.0</version>
   <description>2d object detection with yolov5.</description>
 
-  <maintainer email="hochoi@ethz.ch">Sevensense developers</maintainer>
+  <maintainer email="choi920330@gmail.com"></maintainer>
   <license>closed</license>
 
   <build_depend>catkin</build_depend>

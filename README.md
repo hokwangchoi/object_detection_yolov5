@@ -2,6 +2,7 @@
 This repository introduces a ros node subscribing to a ros topic image and publishing detection arrays and the overlayed image.
 
 ## Environment
+* AMD64 architecture
 * (recommended) Ubuntu 20 or (not tested) Boost with python3 and all ros packages depending on python3
 * [Ros noetic](http://wiki.ros.org/noetic)
 

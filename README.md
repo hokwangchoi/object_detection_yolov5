@@ -28,6 +28,7 @@ $ docker run --ipc=host --gpus all -v /path/to/host/dir/to/mount:/path/name/to/m
 $ cd catkin_ws_noetic/src  # Make sure the catkin workspace is set up.
 $ git clone --recursive https://github.com/choi0330/object_detection_yolov5.git
 $ cd object_detection_yolov5/src/yolov5
+$ git checkout feature/yolov5_rosnode
 $ pip3 install -r requirements.txt  # Python version >= 3.8
 $ catkin build object_detection_yolov5
 $ source ../devel/setup.bash

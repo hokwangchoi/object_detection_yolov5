@@ -85,11 +85,10 @@ void ObjectDetectorYolov5::imageCallback(
     std::terminate();
   }
 
-  // Create a detection for each bounding box
+  // Create a detection for each bounding box.
   vision_msgs::Detection2DArray array_msg;
 
-  // Publish the output
-  // if objects were detected, send out message
+  // Publish the output.
   if (num_detections > 0) {
     for (int n = 0; n < num_detections; n++) {
       vision_msgs::ObjectHypothesisWithPose hyp;
@@ -110,7 +109,7 @@ void ObjectDetectorYolov5::imageCallback(
       detMsg.bbox.size_x = result_vector[n * 6 + kWIndex];
       detMsg.bbox.size_y = result_vector[n * 6 + kHIndex];
 
-      // Generate the overlay image(if there are subscribers).
+      // Generate the overlay image.
       if (overlay_pub_.getNumSubscribers() > 0) {
         cv::Point min_point(
             detMsg.bbox.center.x - 0.5 * detMsg.bbox.size_x,
@@ -122,22 +121,24 @@ void ObjectDetectorYolov5::imageCallback(
         cv::Scalar color = cv::Scalar(135, 74, 32);
         cv::rectangle(
             cv_image, min_point, max_point, color, 2, cv::LineTypes::LINE_AA);
+        std::string class_name;
+        if (hyp.id == "0") {
+          class_name = "Human";
+        } else {
+          class_name = hyp.id;
+        }
         const std::string confidence = std::to_string(hyp.score);
         const std::string rounded =
             confidence.substr(0, confidence.find(".") + 3);
-        cv::String label =
-            std::string("Id: ") + hyp.id + std::string(" Conf: " + rounded);
+        cv::String label = class_name + std::string("  ") + rounded;
         cv::putText(
-            cv_image, label, cv::Point(min_point.x, max_point.y - 2), 0, 0.3,
-            cv::Scalar(225, 255, 255), 1, cv::LineTypes::LINE_AA);
+            cv_image, label, cv::Point(min_point.x, max_point.y - 2), 0, 0.5,
+            cv::Scalar(225, 255, 255), 1.5, cv::LineTypes::LINE_AA);
       }
-
       detMsg.results.push_back(hyp);
       array_msg.detections.push_back(detMsg);
     }
   }
-
-  // Populate the header.
   array_msg.header = input_msg->header;
 
   // Publish the detection message.

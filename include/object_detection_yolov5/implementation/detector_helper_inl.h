@@ -22,11 +22,12 @@ inline np::ndarray ConvertMatToNDArray(const cv::Mat& mat) {
       mat.channels() * mat.cols * sizeof(uchar), mat.channels() * sizeof(uchar),
       sizeof(uchar));
   np::dtype dt = np::dtype::get_builtin<uchar>();
-  np::ndarray ndImg = np::from_data(mat.data, dt, shape, stride, bp::object());
+  np::ndarray nd_array_image = np::from_data(mat.data, dt, shape, stride, bp::object());
 
-  return ndImg;
+  return nd_array_image;
 }
 
+// FROM https://thejosephturner.com/blog/post/embedding-python-in-c-applications-with-boostpython-part-2/
 inline std::string parse_python_exception() {
   PyObject *type_ptr = NULL, *value_ptr = NULL, *traceback_ptr = NULL;
   PyErr_Fetch(&type_ptr, &value_ptr, &traceback_ptr);

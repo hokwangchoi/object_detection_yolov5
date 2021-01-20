@@ -6,9 +6,6 @@ variable_watch(PYTHON_LIBRARY)
 find_package(catkin_simple REQUIRED)
 catkin_simple(ALL_DEPS_REQUIRED)
 
-# CUDA is required
-# find_package(CUDA)
-
 set(PYTHON_LIBRARY /usr/lib/x86_64-linux-gnu/libpython3.8.so)
 set(PYTHON_INCLUDE_DIR /usr/include/python3.8)
 

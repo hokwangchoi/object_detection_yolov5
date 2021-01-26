@@ -32,8 +32,18 @@ $ git checkout feature/yolov5_rosnode
 $ pip3 install -r requirements.txt  # Python version >= 3.8
 $ catkin build object_detection_yolov5
 $ source ../devel/setup.bash
+```
+
+### Running one node (Note: current directory)
+```
 $ cd object_detection_yolov5/src/yolov5
 $ rosrun object_detection_yolov5 detector_node_yolov5 _rostopic_name:=/image/topic/name
+```
+
+### Running multiple nodes with a launch file (Note: ROS_HOME)
+```
+$ export ROS_HOME=/path/to/yolov5
+$ roslaunch /path/to/launch/multi_detection.launch
 ```
 
 ## Disclaimer

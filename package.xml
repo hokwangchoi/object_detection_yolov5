@@ -10,8 +10,6 @@
   <build_depend>catkin</build_depend>
   <build_depend>catkin_simple</build_depend>
 
-  <depend>glog_catkin</depend>
-  <depend>gflags_catkin</depend>
   <depend>python_module</depend>
   <depend>image_transport</depend>
   <depend>opencv3_catkin</depend>
